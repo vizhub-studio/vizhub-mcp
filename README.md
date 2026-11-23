@@ -1,8 +1,8 @@
 # VizHub local MCP server
 
-Run VizHub's **current hosted MCP tools** from Claude Code (or any stdio MCP client), with one extra local tool that uploads a file **without putting the file content into the model's tool arguments**.
+Run VizHub's **current hosted MCP tools** from Claude Code (or any stdio MCP client), with two local tools that upload and download project files **without sending file content through the model's tool arguments or responses**.
 
-The bridge connects over authenticated HTTPS to `https://vizhub.com/api/mcp`. It forwards the remote `tools/list`, `tools/call`, resources and prompts rather than freezing a copy of the hosted tool catalog. The additional `upload_project_dataset_from_file` tool reads from the local filesystem and uploads directly to the existing VizHub REST API.
+The bridge connects over authenticated HTTPS to `https://vizhub.com/api/mcp`. It forwards the remote `tools/list`, `tools/call`, resources and prompts rather than freezing a copy of the hosted tool catalog. The additional `upload_project_dataset_from_file` tool reads local files and uploads them directly to VizHub. `download_project_dataset_to_file` streams original dataset bytes directly into a local file.
 
 ## Requirements
 
@@ -65,6 +65,35 @@ The bridge reads the original bytes, makes an authenticated `multipart/form-data
 - Do not point upload roots at a whole home directory if you only intend to share one project.
 - Upload operations are writes and should be user-approved. A local bridge has filesystem privileges that the hosted MCP server does not.
 
+## Example: direct dataset downloads to disk
+
+Once the authenticated VizHub REST API raw-byte PR is deployed, ask Claude Code:
+
+> List my project datasets, then download the CSV and Parquet files to ./data/.
+
+The hosted `list_project_datasets` tool supplies dataset IDs. The local MCP
+download tool receives metadata only:
+
+```json
+{"dataset_id":"dataset-123","output_path":"./data/sales.csv"}
+```
+
+The bridge makes an authorized GET to
+`/api/v1/projects/:projectId/datasets/:datasetId/content`, streams the
+**original bytes** to a private temporary file, checks the 10 MiB limit
+and SHA-256 while streaming, then atomically publishes the completed file
+without overwriting an existing destination. No CSV-to-JSON conversion,
+LLM data transfer, or UTF-8 decoding occurs.
+
+The output **directory must already exist** and must be inside one of the
+`VIZHUB_UPLOAD_ROOTS` (or the MCP process's working directory by default).
+That configuration restricts both uploads and downloads. Symlinked
+directory escapes and attempts to replace an existing file are refused.
+
+The tool returns only dataset ID, project ID, absolute output path,
+byte count, SHA-256 and MIME type. It does not return dataset content.
+
+The backend raw-byte REST PR must be deployed before using this tool.
 ## Current hosted tools
 
 Tools are not duplicated in this repository. `tools/list` forwards each upstream page with its JSON input schema, annotations and other metadata. All other `tools/call` requests are forwarded without argument rewriting, including structured output and image responses. Resource and prompt list/read calls are forwarded as well. A valid API token and reachable hosted service are required at startup.
@@ -81,7 +110,7 @@ npm test
 npm run check:pack
 ```
 
-Tests cover forwarded tool discovery and calls, local upload metadata, binary integrity, invalid inputs, size checks and directory traversal. CI runs Node 22 and 24. The package stays private/unpublished until reviewed and released; `publishConfig.access=public` is npm metadata, not a GitHub visibility change or a publish action.
+Tests cover forwarded tool discovery and calls, local upload/download metadata, binary integrity, invalid inputs, size checks, incomplete downloads, overwrite refusal and directory traversal. CI runs Node 22 and 24. The package stays private/unpublished until reviewed and released; `publishConfig.access=public` is npm metadata, not a GitHub visibility change or a publish action.
 
 The original January 2026 timeline-event prototype remains available in Git history; it is superseded by the current API-key-authenticated hosted MCP gateway.
 
