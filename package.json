@@ -1,0 +1,51 @@
+{
+  "name": "@vizhub/mcp-server",
+  "version": "0.1.0",
+  "description": "Local stdio MCP bridge for VizHub with direct filesystem dataset uploads",
+  "type": "module",
+  "bin": {
+    "vizhub-mcp-server": "./dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vizhub-studio/vizhub-mcp.git"
+  },
+  "homepage": "https://github.com/vizhub-studio/vizhub-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/vizhub-studio/vizhub-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "vizhub",
+    "claude",
+    "data-visualization",
+    "csv"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepack": "npm run build",
+    "check:pack": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@modelcontextprotocol/server": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
