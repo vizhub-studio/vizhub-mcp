@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-import { createBridgeServer, createUploader } from "./bridge.js";
+import { createBridgeServer, createUploader, createDownloader } from "./bridge.js";
 import { loadConfig } from "./config.js";
 
 async function main() {
@@ -16,7 +16,7 @@ async function main() {
     },
   });
   await remote.connect(transport);
-  const server = createBridgeServer(remote, createUploader(config));
+  const server = createBridgeServer(remote, createUploader(config), createDownloader(config));
   await server.connect(new StdioServerTransport());
   const close = async () => {
     await server.close().catch(() => undefined);
