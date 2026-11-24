@@ -6,10 +6,15 @@ on:
     branches: [main]
 permissions:
   contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test-and-pack:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
         node-version: [22, 24]
     steps:
@@ -18,6 +23,22 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           registry-url: https://registry.npmjs.org
-      - run: npm install --ignore-scripts --no-audit --no-fund
-      - run: npm test
-      - run: npm pack --dry-run
+      - name: Report toolchain and SDK version availability
+        run: |
+          node --version
+          npm --version
+          npm view @modelcontextprotocol/client@2.4.0 version
+          npm view @modelcontextprotocol/server@2.4.0 version
+      - name: Install dependencies
+        id: install
+        if: ${{ !cancelled() }}
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Type checking
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm exec -- tsc --noEmit -p tsconfig.json
+      - name: Tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm test
+      - name: Package tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run check:pack
